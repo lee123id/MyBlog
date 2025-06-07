@@ -1,0 +1,55 @@
+name: Deploy Hexo Blog
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        submodules: 'recursive'  # 如果使用主题子模块
+        fetch-depth: 0
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+        
+    - name: Install Hexo CLI
+      run: npm install -g hexo-cli
+      
+    - name: Install dependencies
+      run: |
+        npm install
+        # 修复 landscape 主题问题
+        if [ ! -d "themes/landscape" ]; then
+          echo "主题目录不存在，正在创建..."
+          mkdir -p themes/landscape
+          cp -R node_modules/hexo-theme-landscape/* themes/landscape/
+        fi
+        
+    - name: Verify theme installation
+      run: |
+        echo "验证主题目录:"
+        ls -la themes/landscape
+        echo "验证配置文件:"
+        grep "theme:" _config.yml || echo "警告：未找到theme配置"
+        
+    - name: Generate static files
+      run: |
+        hexo clean
+        hexo generate
+        
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./public
+        publish_branch: gh-pages
+        full_commit_message: "Deploy: ${{ github.sha }}"
