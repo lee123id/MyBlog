@@ -3,19 +3,15 @@ name: Deploy Hexo Blog
 on:
   push:
     branches: [main]
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  build-deploy:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout repository
+    - name: Checkout
       uses: actions/checkout@v3
-      with:
-        submodules: 'recursive'  # 如果使用主题子模块
-        fetch-depth: 0
-        
+      
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
@@ -27,21 +23,32 @@ jobs:
     - name: Install dependencies
       run: |
         npm install
-        # 修复 landscape 主题问题
+        # 确保主题目录存在
         if [ ! -d "themes/landscape" ]; then
-          echo "主题目录不存在，正在创建..."
+          echo "创建主题目录..."
           mkdir -p themes/landscape
           cp -R node_modules/hexo-theme-landscape/* themes/landscape/
         fi
         
-    - name: Verify theme installation
+    - name: Verify theme
       run: |
-        echo "验证主题目录:"
+        echo "主题目录内容:"
         ls -la themes/landscape
-        echo "验证配置文件:"
-        grep "theme:" _config.yml || echo "警告：未找到theme配置"
+        echo "配置文件内容:"
+        grep "theme:" _config.yml
         
-    - name: Generate static files
+    - name: Fix configuration
+      run: |
+        # 删除重复的theme定义
+        sed -i '/^theme: landscape/d' _config.yml
+        # 确保只有一个theme定义
+        if ! grep -q "theme: landscape" _config.yml; then
+          sed -i '/^# Theme/a theme: landscape' _config.yml
+        fi
+        # 删除plugins配置
+        sed -i '/^plugins:/,/^$/d' _config.yml
+        
+    - name: Generate site
       run: |
         hexo clean
         hexo generate
@@ -52,4 +59,3 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./public
         publish_branch: gh-pages
-        full_commit_message: "Deploy: ${{ github.sha }}"
