@@ -9,7 +9,7 @@ jobs:
   build-deploy:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
+    - name: Checkout code
       uses: actions/checkout@v3
       
     - name: Setup Node.js
@@ -17,45 +17,30 @@ jobs:
       with:
         node-version: '20'
         
-    - name: Install Hexo CLI
-      run: npm install -g hexo-cli
-      
-    - name: Install dependencies
+    - name: Install Hexo and dependencies
       run: |
+        npm install -g hexo-cli
         npm install
-        # 确保主题目录存在
-        if [ ! -d "themes/landscape" ]; then
-          echo "创建主题目录..."
-          mkdir -p themes/landscape
-          cp -R node_modules/hexo-theme-landscape/* themes/landscape/
-        fi
         
-    - name: Verify theme
+    - name: Ensure theme directory
       run: |
-        echo "主题目录内容:"
-        ls -la themes/landscape
-        echo "配置文件内容:"
-        grep "theme:" _config.yml
+        # 创建主题目录并复制文件
+        mkdir -p themes/landscape
+        cp -R node_modules/hexo-theme-landscape/* themes/landscape/
         
-    - name: Fix configuration
-      run: |
-        # 删除重复的theme定义
-        sed -i '/^theme: landscape/d' _config.yml
-        # 确保只有一个theme定义
-        if ! grep -q "theme: landscape" _config.yml; then
-          sed -i '/^# Theme/a theme: landscape' _config.yml
-        fi
-        # 删除plugins配置
-        sed -i '/^plugins:/,/^$/d' _config.yml
-        
-    - name: Generate site
+    - name: Build site with Hexo
       run: |
         hexo clean
         hexo generate
         
+    - name: Add .nojekyll file
+      run: touch ./public/.nojekyll
+      
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./public
         publish_branch: gh-pages
+        force_orphan: true
+        full_commit_message: "Deploy: ${{ github.sha }}"

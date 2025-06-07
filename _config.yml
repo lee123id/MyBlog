@@ -20,6 +20,10 @@ pretty_urls:
 # 主题配置
 theme: landscape
 
+# 添加以下配置
+skip_render:
+  - .nojekyll  # 确保这个文件被包含在构建中
+
 # Directory
 source_dir: source
 public_dir: public
